@@ -1,8 +1,12 @@
+from sentence_transformers import SentenceTransformer
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# ===== 1. Дані =====
+# модель embeddings
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+# ===== дані =====
 logs = [
     "login failure for user admin",
     "ssh brute force detected",
@@ -12,37 +16,10 @@ logs = [
     "system running normally"
 ]
 
-labels = [1, 1, 1, 0, 0, 0]  # 1 = attack, 0 = normal
+labels = [1, 1, 1, 0, 0, 0]
 
-
-# ===== 2. Токенізація =====
-def tokenize(text):
-    return text.lower().split()
-
-
-vocab = {}
-idx = 0
-
-for log in logs:
-    for word in tokenize(log):
-        if word not in vocab:
-            vocab[word] = idx
-            idx += 1
-
-
-def vectorize(text):
-    vec = [0] * (len(vocab) + 1)  # +1 для unknown
-
-    for word in tokenize(text):
-        if word in vocab:
-            vec[vocab[word]] += 1
-        else:
-            vec[-1] += 1  # unknown слова
-
-    return vec
-
-
-X = torch.tensor([vectorize(log) for log in logs], dtype=torch.float32)
+# ===== embeddings =====
+X = torch.tensor(embedder.encode(logs))
 y = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
 
 
@@ -50,21 +27,17 @@ y = torch.tensor(labels, dtype=torch.float32).unsqueeze(1)
 class Net(nn.Module):
     def __init__(self, input_size):
         super().__init__()
-        self.fc1 = nn.Linear(input_size, 16)
+        self.fc1 = nn.Linear(input_size, 32)
         self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(16, 1)
+        self.fc2 = nn.Linear(32, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = self.relu(self.fc1(x))
-        x = self.sigmoid(self.fc2(x))
-        return x
-
-
-model = Net(len(vocab) + 1)
-
+        return self.sigmoid(self.fc2(self.relu(self.fc1(x))))
 
 # ===== 4. Тренування =====
+model = Net(X.shape[1])
+
 criterion = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
@@ -76,18 +49,11 @@ for epoch in range(200):
     loss.backward()
     optimizer.step()
 
-    if epoch % 50 == 0:
-        print(f"Epoch {epoch}, Loss: {loss.item():.4f}")
-
-
 # ===== 5. Тест =====
-test_log = "admin hacked"
-test_vec = torch.tensor(vectorize(test_log), dtype=torch.float32)
+test_log = "Denisky Vzlomaly"
+test_vec = torch.tensor(embedder.encode([test_log]))
 
-prediction = model(test_vec)
-print("\nTest:", test_log)
+pred = model(test_vec)
 
-if prediction.item() > 0.5:
-    print("Prediction: ATTACK")
-else:
-    print("Prediction: NORMAL")
+print(test_log)
+print("ATTACK" if pred.item() > 0.5 else "NORMAL")
