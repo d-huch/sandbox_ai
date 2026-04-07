@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc.*
+
+# Virtual environment
+venv/
+.env/
+.venv/
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Data (важливо для ML)
+data/
+datasets/
+*.csv
+*.json
+*.parquet
+
+# Models (не пушити в git!)
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.onnx
+models/
+
+# HuggingFace / cache
+.cache/
+huggingface/
+transformers_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyTorch / training
+runs/
+checkpoints/
