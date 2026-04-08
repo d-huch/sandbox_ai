@@ -1,0 +1,2 @@
+normal connection established
+ssh brute force detected from 10.0.0.1
