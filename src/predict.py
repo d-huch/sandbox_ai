@@ -62,11 +62,20 @@ def predict_log(
 
 
 def predict_logs(texts: list[str]) -> list[dict[str, Any]]:
+    if not texts:
+        return []
+
     model, embedder, threshold, model_name = load_model()
+    normalized_texts = [normalize_log(text) for text in texts]
+    vectors = encode_with_cache(normalized_texts, model_name)
+
+    with torch.no_grad():
+        scores = model(vectors).squeeze(1).tolist()
+
     results: list[dict[str, Any]] = []
 
-    for text in texts:
-        label, score, normalized = predict_log(text, model, embedder, threshold, model_name)
+    for text, normalized, score in zip(texts, normalized_texts, scores):
+        label = "ATTACK" if score > threshold else "NORMAL"
         results.append(
             {
                 "text": text,

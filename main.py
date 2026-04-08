@@ -1,11 +1,20 @@
-from src.predict import predict_file, predict_log, resolve_input_path
+from src.predict import predict_file, predict_log, predict_logs, resolve_input_path
 from src.train import train_model
+
+
+def print_results(results):
+    for index, item in enumerate(results, start=1):
+        print(f"\n[{index}] {item['text']}")
+        print(f"Normalized: {item['normalized']}")
+        print(f"Score: {item['score']:.4f}")
+        print(f"Prediction: {item['prediction']}")
 
 
 def main():
     print("1 - Train model")
     print("2 - Predict single log")
     print("3 - Predict from txt/csv file")
+    print("4 - Batch inference from many logs")
     choice = input("Choose action: ").strip()
 
     if choice == "1":
@@ -44,11 +53,31 @@ def main():
             print("No valid rows found for prediction.")
             return
 
-        for index, item in enumerate(results, start=1):
-            print(f"\n[{index}] {item['text']}")
-            print(f"Normalized: {item['normalized']}")
-            print(f"Score: {item['score']:.4f}")
-            print(f"Prediction: {item['prediction']}")
+        print_results(results)
+    elif choice == "4":
+        print("Enter logs one per line. Submit empty line to run batch inference.")
+        logs = []
+
+        while True:
+            text = input().strip()
+            if not text:
+                break
+            logs.append(text)
+
+        if not logs:
+            print("No logs entered.")
+            return
+
+        try:
+            results = predict_logs(logs)
+        except FileNotFoundError as e:
+            print(f"Missing required file: {e}")
+            return
+        except Exception as e:
+            print(f"Prediction failed: {e}")
+            return
+
+        print_results(results)
     else:
         print("Unknown option")
 
