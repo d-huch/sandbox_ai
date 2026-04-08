@@ -6,6 +6,7 @@ from typing import Any
 import torch
 from sentence_transformers import SentenceTransformer
 
+from src.embeddings import encode_with_cache, get_embedder
 from src.model import Net
 from src.preprocess import normalize_log
 
@@ -22,10 +23,11 @@ def resolve_input_path(path: str) -> Path:
     return file_path.resolve(strict=False)
 
 
-def load_model() -> tuple[Net, SentenceTransformer, float]:
+def load_model() -> tuple[Net, SentenceTransformer, float, str]:
     with open(META_PATH, "r", encoding="utf-8") as f:
         meta = json.load(f)
 
+    model_name = meta["model_name"]
     input_size = meta["input_size"]
     threshold = meta["threshold"]
 
@@ -33,9 +35,9 @@ def load_model() -> tuple[Net, SentenceTransformer, float]:
     model.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     model.eval()
 
-    embedder = SentenceTransformer(meta["model_name"], device="cpu")
+    embedder = get_embedder(model_name)
 
-    return model, embedder, threshold
+    return model, embedder, threshold, model_name
 
 
 def predict_log(
@@ -43,12 +45,13 @@ def predict_log(
     model: Net | None = None,
     embedder: SentenceTransformer | None = None,
     threshold: float | None = None,
+    model_name: str | None = None,
 ) -> tuple[str, float, str]:
-    if model is None or embedder is None or threshold is None:
-        model, embedder, threshold = load_model()
+    if model is None or embedder is None or threshold is None or model_name is None:
+        model, embedder, threshold, model_name = load_model()
 
     normalized = normalize_log(text)
-    vec = torch.tensor(embedder.encode([normalized]), dtype=torch.float32)
+    vec = encode_with_cache([normalized], model_name)
 
     with torch.no_grad():
         pred = model(vec)
@@ -59,11 +62,11 @@ def predict_log(
 
 
 def predict_logs(texts: list[str]) -> list[dict[str, Any]]:
-    model, embedder, threshold = load_model()
+    model, embedder, threshold, model_name = load_model()
     results: list[dict[str, Any]] = []
 
     for text in texts:
-        label, score, normalized = predict_log(text, model, embedder, threshold)
+        label, score, normalized = predict_log(text, model, embedder, threshold, model_name)
         results.append(
             {
                 "text": text,

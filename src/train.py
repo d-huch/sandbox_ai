@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 from sentence_transformers import SentenceTransformer
 
+from src.embeddings import encode_with_cache, get_embedder
 from src.model import Net
 from src.preprocess import load_csv_dataset
 
@@ -17,6 +18,7 @@ TEST_PATH = "data/test.csv"
 ARTIFACTS_DIR = Path("artifacts")
 MODEL_PATH = ARTIFACTS_DIR / "log_model.pt"
 META_PATH = ARTIFACTS_DIR / "meta.json"
+MODEL_NAME = "all-MiniLM-L6-v2"
 
 def evaluate(model: Net, x_test: torch.Tensor, y_test: torch.Tensor) -> dict:
     model.eval()
@@ -44,12 +46,12 @@ def train_model(epochs: int = 200) -> Tuple[Net, SentenceTransformer]:
     train_logs, train_labels = load_csv_dataset(TRAIN_PATH)
     test_logs, test_labels = load_csv_dataset(TEST_PATH)
 
-    embedder = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+    embedder = get_embedder(MODEL_NAME)
 
-    x_train = torch.tensor(embedder.encode(train_logs), dtype=torch.float32)
+    x_train = encode_with_cache(train_logs, MODEL_NAME)
     y_train = torch.tensor(train_labels, dtype=torch.float32).unsqueeze(1)
 
-    x_test = torch.tensor(embedder.encode(test_logs), dtype=torch.float32)
+    x_test = encode_with_cache(test_logs, MODEL_NAME)
     y_test = torch.tensor(test_labels, dtype=torch.float32).unsqueeze(1)
 
     model = Net(x_train.shape[1])
@@ -83,7 +85,7 @@ def train_model(epochs: int = 200) -> Tuple[Net, SentenceTransformer]:
     with open(META_PATH, "w", encoding="utf-8") as f:
         json.dump(
             {
-                "model_name": "all-MiniLM-L6-v2",
+                "model_name": MODEL_NAME,
                 "threshold": 0.5,
                 "input_size": x_train.shape[1],
             },
